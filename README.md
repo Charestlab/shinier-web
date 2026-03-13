@@ -49,6 +49,15 @@ On GitHub:
 - go to **Settings** → **Pages**
 - set **Source** to **GitHub Actions**
 
+Optional: if you want the workflow to enable Pages automatically, add a repository
+secret named `PAGES_ADMIN_TOKEN`.
+
+- for a personal access token, grant `repo` and Pages write access
+- for a GitHub App token, grant `administration:write` and `pages:write`
+
+Without that secret, the first deployment will fail until Pages is enabled once in
+the repository settings.
+
 ### 5. Automatic deployment
 
 Each push to `main` will rebuild and redeploy the website.

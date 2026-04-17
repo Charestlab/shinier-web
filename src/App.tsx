@@ -5,13 +5,18 @@ import { DocsPage } from "./components/DocsPage";
 type AppTab = "viewer" | "docs";
 
 function getTabFromHash(hash: string): AppTab {
-  return hash.startsWith("#docs") ? "docs" : "viewer";
+  return hash.startsWith("#viewer") ? "viewer" : "docs";
 }
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>(() => getTabFromHash(window.location.hash));
 
   useEffect(() => {
+    if (!window.location.hash) {
+      window.history.replaceState(null, "", "#docs");
+      setActiveTab("docs");
+    }
+
     const onHashChange = () => {
       setActiveTab(getTabFromHash(window.location.hash));
     };
@@ -19,6 +24,10 @@ export default function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  useEffect(() => {
+    document.title = activeTab === "viewer" ? "SHINIER — CIE xyY Viewer" : "SHINEIR — documentation";
+  }, [activeTab]);
 
   const switchTab = (tab: AppTab) => {
     setActiveTab(tab);

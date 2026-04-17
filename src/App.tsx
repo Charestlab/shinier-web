@@ -26,7 +26,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = activeTab === "viewer" ? "SHINIER — CIE xyY Viewer" : "SHINEIR — documentation";
+    document.title = activeTab === "viewer" ? "SHINIER — CIE xyY Viewer" : "SHINIER — documentation";
   }, [activeTab]);
 
   const switchTab = (tab: AppTab) => {

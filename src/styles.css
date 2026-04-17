@@ -271,6 +271,17 @@ body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, '
 	text-decoration: none;
 }
 
+.docs-source-links {
+	flex: 0 0 auto;
+	display: grid;
+	gap: 10px;
+}
+
+.docs-source-link--secondary {
+	background: #e5ebf4;
+	color: #0f172a;
+}
+
 .docs-reference-panel {
 	position: sticky;
 	top: 92px;

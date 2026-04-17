@@ -833,9 +833,14 @@ export function DocsPage() {
               This tab centralizes the essential package usage information: the Options model, the main ImageProcessor methods, and a focused subset of utility functions needed to work effectively with SHINIER.
             </p>
           </div>
-          <a className="docs-source-link" href={SHINIER_DOCS.metadata.githubUrl} target="_blank" rel="noreferrer">
-            Open GitHub source
-          </a>
+          <div className="docs-source-links">
+            <a className="docs-source-link" href={SHINIER_DOCS.metadata.githubUrl} target="_blank" rel="noreferrer">
+              Open GitHub source
+            </a>
+            <a className="docs-source-link docs-source-link--secondary" href="https://pypi.org/project/shinier/" target="_blank" rel="noreferrer">
+              Open PyPI
+            </a>
+          </div>
         </div>
 
         <div className="docs-callout">

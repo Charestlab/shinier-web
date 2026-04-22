@@ -411,8 +411,8 @@ Example:
 from shinier.utils import image_spectrum
 import numpy as np
 from PIL import Image
-target_img = np.array(Image.open("target.png")).astype(np.float64) / 255.0
-target_spectrum, _ = image_spectrum(target_img, rescale=False)
+im = np.array(Image.open("my_image.png").convert("L"), dtype=np.float64)
+target_spectrum = image_spectrum(im)[0]
 \`\`\`
 
 Related plotting helpers are {@ref utils-spectrum-plot|spectrum_plot}, {@ref utils-im-power-spectrum-plot|im_power_spectrum_plot}, and {@ref utils-sf-plot|sf_plot}.

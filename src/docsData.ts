@@ -408,10 +408,11 @@ Target magnitude spectrum.
 Example:
 
 \`\`\`
-from shinier.utils import cart2pol
-fftim = np.fft.fftshift(np.fft.fft2(im))
-rho, theta = cart2pol(np.real(fftim), np.imag(fftim))
-target_spectrum = rho
+from shinier.utils import image_spectrum
+import numpy as np
+from PIL import Image
+target_img = np.array(Image.open("target.png")).astype(np.float64) / 255.0
+target_spectrum, _ = image_spectrum(target_img, rescale=False)
 \`\`\`
 
 Related plotting helpers are {@ref utils-spectrum-plot|spectrum_plot}, {@ref utils-im-power-spectrum-plot|im_power_spectrum_plot}, and {@ref utils-sf-plot|sf_plot}.

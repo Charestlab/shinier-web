@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Plot from "react-plotly.js";
 import "./design-tokens.css";
 import ControlRow from "./components/ControlRow";
 
@@ -419,6 +420,67 @@ function rotatePoint(
   const z3 = -sz * x2 + cz * z2;
 
   return { x: x3, y: y3, z: z3 };
+}
+
+function fitViewerControlsFromEye(
+  eye: { x: number; y: number; z: number },
+  initial: { rotX: number; rotY: number; rotZ: number },
+) {
+  const base = { x: 0.95, y: 1.25, z: 1.55 };
+  const baseNorm = Math.hypot(base.x, base.y, base.z);
+  const eyeNorm = Math.max(1e-6, Math.hypot(eye.x, eye.y, eye.z));
+  const target = {
+    x: eye.x * (eyeNorm / baseNorm),
+    y: eye.y * (eyeNorm / baseNorm),
+    z: eye.z * (eyeNorm / baseNorm),
+  };
+
+  let rotX = initial.rotX;
+  let rotY = initial.rotY;
+  let rotZ = initial.rotZ;
+
+  const errorFor = (rx: number, ry: number, rz: number) => {
+    const r = rotatePoint(base.x, base.y, base.z, rx, ry, rz);
+    const dx = r.x - target.x;
+    const dy = r.y - target.y;
+    const dz = r.z - target.z;
+    return dx * dx + dy * dy + dz * dz;
+  };
+
+  let stepX = 0.18;
+  let stepY = 0.18;
+  let stepZ = 0.18;
+  let best = errorFor(rotX, rotY, rotZ);
+
+  for (let iter = 0; iter < 18; iter += 1) {
+    let improved = false;
+    const candidates: Array<[number, number, number]> = [
+      [rotX + stepX, rotY, rotZ],
+      [rotX - stepX, rotY, rotZ],
+      [rotX, rotY + stepY, rotZ],
+      [rotX, rotY - stepY, rotZ],
+      [rotX, rotY, rotZ + stepZ],
+      [rotX, rotY, rotZ - stepZ],
+    ];
+    for (const [rx, ry, rz] of candidates) {
+      const err = errorFor(rx, ry, rz);
+      if (err < best) {
+        rotX = rx;
+        rotY = ry;
+        rotZ = rz;
+        best = err;
+        improved = true;
+      }
+    }
+    if (!improved) {
+      stepX *= 0.55;
+      stepY *= 0.55;
+      stepZ *= 0.55;
+    }
+  }
+
+  const zoom = Math.max(0.65, Math.min(1.6, baseNorm / eyeNorm));
+  return { rotX, rotY, rotZ, zoom };
 }
 
 function project3D(
@@ -1142,6 +1204,7 @@ function S2Legend() {
 }
 
 export default function RoeschMacAdamxyYViewer() {
+  const [viewerTheme, setViewerTheme] = useState<"dark" | "light">("dark");
   const [sliceY, setSliceY] = useState(0.5);
   const [sliceThickness, setSliceThickness] = useState(0.1);
   const [showPass, setShowPass] = useState(true);
@@ -1156,6 +1219,8 @@ export default function RoeschMacAdamxyYViewer() {
   const [rotY, setRotY] = useState(0.0);
   const [rotZ, setRotZ] = useState(0.0);
   const [zoom, setZoom] = useState(0.85);
+  const [cameraOverride, setCameraOverride] = useState<any | null>(null);
+  const [plotlyGraphDiv, setPlotlyGraphDiv] = useState<any | null>(null);
 
   const [demoX, setDemoX] = useState(0.62);
   const [demoY, setDemoY] = useState(0.33);
@@ -1164,8 +1229,6 @@ export default function RoeschMacAdamxyYViewer() {
   const [demoR, setDemoR] = useState(255);
   const [demoG, setDemoG] = useState(121);
   const [demoB, setDemoB] = useState(113);
-
-  const dragRef = useRef<{ x: number; y: number; active: boolean } | null>(null);
 
   const points = useMemo(() => {
     const pts = buildOptimalSolid();
@@ -1259,6 +1322,52 @@ export default function RoeschMacAdamxyYViewer() {
     demoOriginalDisplay.outOfGamut && demoOriginal.Y > GAMUT_EPSILON && demoLuminance.Ymax <= GAMUT_EPSILON;
   const luminanceAccent = demoLuminanceFixFails ? "#f87171" : "#38bdf8";
 
+  const viewerPalette = viewerTheme === "light"
+    ? {
+        cardBg: "#ffffff",
+        cardBorder: "#d7e0ea",
+        title: "#0f172a",
+        subtext: "#334155",
+        svgBg: "#ffffff",
+        axisStroke: "#64748b",
+        axisLabel: "#334155",
+        frameStroke: "#94a3b8",
+        simplexStroke: "rgba(100,116,139,0.55)",
+        locusStroke: "#475569",
+        hullFill: "rgba(15,23,42,0.05)",
+        hullStroke: "#0f172a",
+        meshStroke: "rgba(100,116,139,0.52)",
+        meshActiveStroke: "#0f172a",
+        sliceMarkerFill: "#0f172a",
+        sliceMarkerStroke: "#ffffff",
+        segmentBg: "#e2e8f0",
+        segmentText: "#334155",
+        segmentActiveBg: "#0f172a",
+        segmentActiveText: "#f8fafc",
+      }
+    : {
+        cardBg: "#081726",
+        cardBorder: "#1e293b",
+        title: "#e2e8f0",
+        subtext: "#cbd5e1",
+        svgBg: "#020617",
+        axisStroke: "#64748b",
+        axisLabel: "#cbd5e1",
+        frameStroke: "#334155",
+        simplexStroke: "rgba(100,116,139,0.42)",
+        locusStroke: "#94a3b8",
+        hullFill: "rgba(255,255,255,0.05)",
+        hullStroke: "#e2e8f0",
+        meshStroke: "rgba(203,213,225,0.45)",
+        meshActiveStroke: "#ffffff",
+        sliceMarkerFill: "#ffffff",
+        sliceMarkerStroke: "#000000",
+        segmentBg: "rgba(255,255,255,0.06)",
+        segmentText: "#cbd5e1",
+        segmentActiveBg: "#f59e85",
+        segmentActiveText: "#08111d",
+      };
+
   const demoSliceHull = useMemo(() => {
     const pts: XY[] = filtered3D
       .filter((p) => Math.abs(p.Y - demoLum) <= sliceThickness / 2)
@@ -1311,6 +1420,273 @@ export default function RoeschMacAdamxyYViewer() {
     axisLine3D([0, 0, 0], [0, 0.9, 0], W3, H3, rotX, rotY, rotZ, zoom, "y"),
     axisLine3D([0, 0, 0], [0, 0, 1], W3, H3, rotX, rotY, rotZ, zoom, "Y"),
   ];
+
+  const plotlyCamera = useMemo(() => {
+    const baseEye = rotatePoint(0.95, 1.25, 1.55, rotX, rotY, rotZ);
+    const eyeScale = 1 / Math.max(zoom, 0.2);
+    return {
+      eye: {
+        x: baseEye.x * eyeScale,
+        y: baseEye.y * eyeScale,
+        z: baseEye.z * eyeScale,
+      },
+      up: { x: 0, y: 1, z: 0 },
+      center: { x: 0, y: 0, z: 0 },
+    };
+  }, [rotX, rotY, rotZ, zoom]);
+
+  const clearCameraOverride = () => setCameraOverride(null);
+
+  const plotly3DData = useMemo(() => {
+    const traces: any[] = [];
+
+    if (showMesh) {
+      sortedHulls.forEach((h, idx) => {
+        if (h.hull.length < 3) return;
+        const hx = h.hull.map((pt) => pt[0]);
+        const hy = h.hull.map(() => h.Y);
+        const hz = h.hull.map((pt) => pt[1]);
+        const i: number[] = [];
+        const j: number[] = [];
+        const k: number[] = [];
+        for (let t = 1; t < h.hull.length - 1; t += 1) {
+          i.push(0);
+          j.push(t);
+          k.push(t + 1);
+        }
+        traces.push({
+          type: "mesh3d",
+          x: hx,
+          y: hy,
+          z: hz,
+          i,
+          j,
+          k,
+          color: h.fill,
+          opacity: 0.42,
+          hoverinfo: "skip",
+          flatshading: true,
+          showscale: false,
+          name: `slice-${idx}`,
+        });
+        traces.push({
+          type: "scatter3d",
+          mode: "lines",
+          x: [...hx, hx[0]],
+          y: [...hy, hy[0]],
+          z: [...hz, hz[0]],
+          line: {
+            color: Math.abs(h.Y - sliceY) <= sliceThickness / 2
+              ? viewerPalette.meshActiveStroke
+              : viewerPalette.meshStroke,
+            width: Math.abs(h.Y - sliceY) <= sliceThickness / 2 ? 5 : 2,
+          },
+          hoverinfo: "skip",
+          showlegend: false,
+        });
+      });
+    }
+
+    if (showPoints) {
+      traces.push({
+        type: "scatter3d",
+        mode: "markers",
+        x: filtered3D.map((p) => p.x),
+        y: filtered3D.map((p) => p.Y),
+        z: filtered3D.map((p) => p.y),
+        marker: {
+          size: Math.max(1.5, pointSize * 2.1),
+          color: filtered3D.map((p) => p.rgb),
+          opacity: 0.82,
+        },
+        hovertemplate: "x=%{x:.3f}<br>Y=%{y:.3f}<br>y=%{z:.3f}<extra></extra>",
+        showlegend: false,
+      });
+    }
+
+    if (slicePoints.length > 0) {
+      traces.push({
+        type: "scatter3d",
+        mode: "markers",
+        x: slicePoints.map((p) => p.x),
+        y: slicePoints.map((p) => p.Y),
+        z: slicePoints.map((p) => p.y),
+        marker: {
+          size: Math.max(2.4, pointSize * 2.8),
+          color: viewerPalette.sliceMarkerFill,
+          line: {
+            color: viewerPalette.sliceMarkerStroke,
+            width: 1.2,
+          },
+        },
+        hoverinfo: "skip",
+        showlegend: false,
+      });
+    }
+
+    if (showOrthographicIn3D) {
+      const a = demoOriginal;
+      const b = demoChrominance;
+      const c = demoLuminance;
+      if (showChrominanceConstraint) {
+        traces.push({
+          type: "scatter3d",
+          mode: "lines",
+          x: [a.x, b.x],
+          y: [a.Y, b.Y],
+          z: [a.y, b.y],
+          line: { color: "#22c55e", width: 6 },
+          hoverinfo: "skip",
+          showlegend: false,
+        });
+      }
+      if (showLuminanceConstraint) {
+        traces.push({
+          type: "scatter3d",
+          mode: "lines",
+          x: [a.x, c.x],
+          y: [a.Y, c.Y],
+          z: [a.y, c.y],
+          line: { color: luminanceAccent, width: 6, dash: "dash" },
+          hoverinfo: "skip",
+          showlegend: false,
+        });
+      }
+      traces.push({
+        type: "scatter3d",
+        mode: "markers",
+        x: [a.x],
+        y: [a.Y],
+        z: [a.y],
+        marker: {
+          size: 8,
+          color: demoOriginalDisplay.css,
+          line: { color: "#ef4444", width: 3 },
+        },
+        hoverinfo: "skip",
+        showlegend: false,
+      });
+      if (showChrominanceConstraint) {
+        traces.push({
+          type: "scatter3d",
+          mode: "markers",
+          x: [b.x],
+          y: [b.Y],
+          z: [b.y],
+          marker: {
+            size: 7,
+            color: demoChrominanceDisplay.css,
+            line: { color: "#22c55e", width: 3 },
+          },
+          hoverinfo: "skip",
+          showlegend: false,
+        });
+      }
+      if (showLuminanceConstraint) {
+        traces.push({
+          type: "scatter3d",
+          mode: "markers",
+          x: [c.x],
+          y: [c.Y],
+          z: [c.y],
+          marker: {
+            size: 7,
+            color: demoLuminanceDisplay.css,
+            line: { color: luminanceAccent, width: 3 },
+          },
+          hoverinfo: "skip",
+          showlegend: false,
+        });
+      }
+    }
+
+    return traces;
+  }, [
+    sortedHulls,
+    sliceY,
+    sliceThickness,
+    viewerPalette,
+    showMesh,
+    showPoints,
+    filtered3D,
+    pointSize,
+    slicePoints,
+    showOrthographicIn3D,
+    showChrominanceConstraint,
+    showLuminanceConstraint,
+    demoOriginal,
+    demoChrominance,
+    demoLuminance,
+    demoOriginalDisplay.css,
+    demoChrominanceDisplay.css,
+    demoLuminanceDisplay.css,
+    luminanceAccent,
+  ]);
+
+  const plotly3DLayout = useMemo(() => ({
+    paper_bgcolor: viewerPalette.svgBg,
+    plot_bgcolor: viewerPalette.svgBg,
+    margin: { l: 0, r: 0, t: 0, b: 0 },
+    showlegend: false,
+    font: { color: viewerPalette.axisLabel },
+    scene: {
+      bgcolor: viewerPalette.svgBg,
+      camera: cameraOverride ?? plotlyCamera,
+      aspectmode: "manual",
+      aspectratio: { x: 1.15, y: 1.45, z: 1.0 },
+      xaxis: {
+        title: "x",
+        color: viewerPalette.axisLabel,
+        showbackground: false,
+        gridcolor: viewerPalette.frameStroke,
+        zeroline: false,
+        linecolor: viewerPalette.axisStroke,
+        tickcolor: viewerPalette.axisStroke,
+      },
+      yaxis: {
+        title: "Y",
+        color: viewerPalette.axisLabel,
+        showbackground: false,
+        gridcolor: viewerPalette.frameStroke,
+        zeroline: false,
+        linecolor: viewerPalette.axisStroke,
+        tickcolor: viewerPalette.axisStroke,
+        range: [0, 1],
+      },
+      zaxis: {
+        title: "y",
+        color: viewerPalette.axisLabel,
+        showbackground: false,
+        gridcolor: viewerPalette.frameStroke,
+        zeroline: false,
+        linecolor: viewerPalette.axisStroke,
+        tickcolor: viewerPalette.axisStroke,
+      },
+    },
+  }), [viewerPalette, plotlyCamera, cameraOverride]);
+
+  const syncViewerControlsFromCamera = (event: any) => {
+    const camera = event?.["scene.camera"] ?? event?.scene?.camera;
+    const eye = camera?.eye;
+    if (!eye) return;
+    setCameraOverride(camera);
+    const fitted = fitViewerControlsFromEye(eye, { rotX, rotY, rotZ });
+    if (Math.abs(fitted.rotX - rotX) > 1e-3) setRotX(fitted.rotX);
+    if (Math.abs(fitted.rotY - rotY) > 1e-3) setRotY(fitted.rotY);
+    if (Math.abs(fitted.rotZ - rotZ) > 1e-3) setRotZ(fitted.rotZ);
+    if (Math.abs(fitted.zoom - zoom) > 1e-3) setZoom(fitted.zoom);
+  };
+
+  useEffect(() => {
+    if (!plotlyGraphDiv?.on || !plotlyGraphDiv?.removeListener) return undefined;
+    const handleRelayouting = (event: any) => {
+      syncViewerControlsFromCamera(event);
+    };
+    plotlyGraphDiv.on("plotly_relayouting", handleRelayouting);
+    return () => {
+      plotlyGraphDiv.removeListener("plotly_relayouting", handleRelayouting);
+    };
+  }, [plotlyGraphDiv, rotX, rotY, rotZ, zoom]);
 
   const syncFromXyY = (x: number, y: number, Y: number) => {
     const clampedY = Math.max(0, Math.min(1, Y));
@@ -1450,7 +1826,10 @@ export default function RoeschMacAdamxyYViewer() {
                     max={1.4}
                     step={0.01}
                     value={rotX}
-                    onChange={setRotX}
+                    onChange={(value) => {
+                      clearCameraOverride();
+                      setRotX(value);
+                    }}
                   />
                   <NumericSlider
                     label="Y (chroma)"
@@ -1458,7 +1837,10 @@ export default function RoeschMacAdamxyYViewer() {
                     max={3.14}
                     step={0.01}
                     value={rotY}
-                    onChange={setRotY}
+                    onChange={(value) => {
+                      clearCameraOverride();
+                      setRotY(value);
+                    }}
                   />
                   <NumericSlider
                     label="Y (lum)"
@@ -1466,7 +1848,10 @@ export default function RoeschMacAdamxyYViewer() {
                     max={3.14}
                     step={0.01}
                     value={rotZ}
-                    onChange={setRotZ}
+                    onChange={(value) => {
+                      clearCameraOverride();
+                      setRotZ(value);
+                    }}
                   />
                 </div>
                 <div className="mt-3">
@@ -1476,7 +1861,10 @@ export default function RoeschMacAdamxyYViewer() {
                     max={1.6}
                     step={0.01}
                     value={zoom}
-                    onChange={setZoom}
+                    onChange={(value) => {
+                      clearCameraOverride();
+                      setZoom(value);
+                    }}
                   />
                 </div>
               </div>
@@ -1486,153 +1874,78 @@ export default function RoeschMacAdamxyYViewer() {
           </div>
 
           <div className="center-col grid grid-cols-1 gap-4">
-            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
-              <div className="mb-2 text-sm font-medium text-slate-200">Interactive 3D xyY view</div>
-              <svg
-                viewBox={`0 0 ${W3} ${H3}`}
-                className="h-[560px] w-full cursor-grab rounded-xl bg-slate-950 active:cursor-grabbing"
-                onMouseDown={(e) => {
-                  dragRef.current = { x: e.clientX, y: e.clientY, active: true };
+            <div
+              className="space-y-3 rounded-2xl border p-3"
+              style={{ backgroundColor: viewerPalette.cardBg, borderColor: viewerPalette.cardBorder }}
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="text-sm font-medium" style={{ color: viewerPalette.title }}>
+                  Interactive 3D xyY view
+                </div>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    gap: 4,
+                    padding: 4,
+                    borderRadius: 999,
+                    backgroundColor: viewerPalette.segmentBg,
+                  }}
+                >
+                  {(["dark", "light"] as const).map((themeKey) => {
+                    const active = viewerTheme === themeKey;
+                    return (
+                      <button
+                        key={themeKey}
+                        type="button"
+                        onClick={() => setViewerTheme(themeKey)}
+                        style={{
+                          border: 0,
+                          borderRadius: 999,
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          backgroundColor: active ? viewerPalette.segmentActiveBg : "transparent",
+                          color: active ? viewerPalette.segmentActiveText : viewerPalette.segmentText,
+                        }}
+                      >
+                        {themeKey === "dark" ? "Dark" : "Light"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <Plot
+                data={plotly3DData}
+                layout={plotly3DLayout as any}
+                config={{
+                  responsive: true,
+                  displaylogo: false,
+                  modeBarButtonsToRemove: ["select2d", "lasso2d"],
                 }}
-                onMouseMove={(e) => {
-                  const d = dragRef.current;
-                  if (!d?.active) return;
-                  const dx = e.clientX - d.x;
-                  const dy = e.clientY - d.y;
-                  setRotZ((v) => v + dx * 0.01);
-                  setRotX((v) => Math.max(-1.4, Math.min(1.4, v + dy * 0.01)));
-                  dragRef.current = { x: e.clientX, y: e.clientY, active: true };
-                }}
-                onMouseUp={() => {
-                  dragRef.current = null;
-                }}
-                onMouseLeave={() => {
-                  dragRef.current = null;
-                }}
-              >
-                {axes.map((axis, i) => (
-                  <g key={i}>
-                    <line
-                      x1={axis.a.sx}
-                      y1={axis.a.sy}
-                      x2={axis.b.sx}
-                      y2={axis.b.sy}
-                      stroke="#64748b"
-                      strokeWidth={1.5}
-                    />
-                    <text x={axis.b.sx + 4} y={axis.b.sy - 4} fill="#cbd5e1" fontSize="12">
-                      {axis.label}
-                    </text>
-                  </g>
-                ))}
-
-                {showMesh &&
-                  sortedHulls.map((h, idx) => (
-                    <path
-                      key={`mesh-${idx}`}
-                      d={pathFromProjectedHull(h.hull, h.Y, W3, H3, rotX, rotY, rotZ, zoom)}
-                      fill={h.fill}
-                      stroke={
-                        Math.abs(h.Y - sliceY) <= sliceThickness / 2
-                          ? "#ffffff"
-                          : "rgba(203,213,225,0.45)"
-                      }
-                      strokeWidth={
-                        Math.abs(h.Y - sliceY) <= sliceThickness / 2 ? 1.8 : 0.8
-                      }
-                    />
-                  ))}
-
-                {showOrthographicIn3D && (
-                  <g>
-                    {/* project and draw the demo original / chroma / luminance points and connecting lines in 3D */}
-                    {(() => {
-                      const a = project3D(
-                        { x: demoOriginal.x, y: demoOriginal.y, Y: demoOriginal.Y, rgb: demoOriginalDisplay.css, kind: "pass" },
-                        W3,
-                        H3,
-                        rotX,
-                        rotY,
-                        rotZ,
-                        zoom,
-                      );
-                      const b = project3D(
-                        { x: demoChrominance.x, y: demoChrominance.y, Y: demoChrominance.Y, rgb: demoChrominanceDisplay.css, kind: "pass" },
-                        W3,
-                        H3,
-                        rotX,
-                        rotY,
-                        rotZ,
-                        zoom,
-                      );
-                      const c = project3D(
-                        { x: demoLuminance.x, y: demoLuminance.y, Y: demoLuminance.Y, rgb: demoLuminanceDisplay.css, kind: "pass" },
-                        W3,
-                        H3,
-                        rotX,
-                        rotY,
-                        rotZ,
-                        zoom,
-                      );
-                      return (
-                        <g>
-                          {showChrominanceConstraint && (
-                            <line x1={a.sx} y1={a.sy} x2={b.sx} y2={b.sy} stroke="#22c55e" strokeWidth={2.2} />
-                          )}
-                          {showLuminanceConstraint && (
-                            <line x1={a.sx} y1={a.sy} x2={c.sx} y2={c.sy} stroke={luminanceAccent} strokeWidth={2.2} strokeDasharray="6 5" />
-                          )}
-                          <circle cx={a.sx} cy={a.sy} r={7} fill={demoOriginalDisplay.css} stroke="#ef4444" strokeWidth={2} />
-                          {showChrominanceConstraint && (
-                            <circle cx={b.sx} cy={b.sy} r={6} fill={demoChrominanceDisplay.css} stroke="#22c55e" strokeWidth={2} />
-                          )}
-                          {showLuminanceConstraint && (
-                            <circle cx={c.sx} cy={c.sy} r={6} fill={demoLuminanceDisplay.css} stroke={luminanceAccent} strokeWidth={2} />
-                          )}
-                        </g>
-                      );
-                    })()}
-                  </g>
-                )}
-
-                {showPoints &&
-                  sorted3D.map(({ p, proj }, idx) => (
-                    <circle
-                      key={`${p.kind}-${idx}`}
-                      cx={proj.sx}
-                      cy={proj.sy}
-                      r={pointSize}
-                      fill={p.rgb}
-                      fillOpacity={0.78}
-                    />
-                  ))}
-
-                {slicePoints.map((p, idx) => {
-                  const proj = project3D(p, W3, H3, rotX, rotY, rotZ, zoom);
-                  return (
-                    <circle
-                      key={`slice-${idx}`}
-                      cx={proj.sx}
-                      cy={proj.sy}
-                      r={pointSize + 1.0}
-                      fill="#ffffff"
-                      stroke="#000000"
-                      strokeWidth={0.8}
-                    />
-                  );
-                })}
-              </svg>
+                onInitialized={(_, graphDiv) => setPlotlyGraphDiv(graphDiv)}
+                onUpdate={(_, graphDiv) => setPlotlyGraphDiv(graphDiv)}
+                onPurge={() => setPlotlyGraphDiv(null)}
+                onRelayout={syncViewerControlsFromCamera}
+                style={{ width: "100%", height: "560px", borderRadius: 16, overflow: "hidden" }}
+                useResizeHandler
+              />
 
                 
 
               
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-3">
+            <div
+              className="rounded-2xl border p-3"
+              style={{ backgroundColor: viewerPalette.cardBg, borderColor: viewerPalette.cardBorder }}
+            >
               <div className="mb-2 text-sm font-medium text-slate-200">
-                Chromaticity slice at Y ≈ {sliceY.toFixed(2)}
+                <span style={{ color: viewerPalette.title }}>
+                  Chromaticity slice at Y ≈ {sliceY.toFixed(2)}
+                </span>
               </div>
-              <svg viewBox={`0 0 ${W2} ${H2}`} className="h-[560px] w-full rounded-xl bg-slate-950">
+              <svg viewBox={`0 0 ${W2} ${H2}`} className="h-[560px] w-full rounded-xl" style={{ backgroundColor: viewerPalette.svgBg }}>
                 <defs>
                   <clipPath id={clipId}>
                     {sliceHull.length >= 3 && (
@@ -1647,7 +1960,7 @@ export default function RoeschMacAdamxyYViewer() {
                   width={W2 - 120}
                   height={H2 - 90}
                   fill="none"
-                  stroke="#334155"
+                  stroke={viewerPalette.frameStroke}
                   strokeWidth={1}
                 />
                 <line
@@ -1655,7 +1968,7 @@ export default function RoeschMacAdamxyYViewer() {
                   y1={H2 - 40}
                   x2={W2 - 40}
                   y2={H2 - 40}
-                  stroke="#64748b"
+                  stroke={viewerPalette.axisStroke}
                   strokeWidth={1.5}
                 />
                 <line
@@ -1663,32 +1976,32 @@ export default function RoeschMacAdamxyYViewer() {
                   y1={H2 - 40}
                   x2={60}
                   y2={40}
-                  stroke="#64748b"
+                  stroke={viewerPalette.axisStroke}
                   strokeWidth={1.5}
                 />
-                <text x={W2 - 30} y={H2 - 45} fill="#cbd5e1" fontSize="12">
+                <text x={W2 - 30} y={H2 - 45} fill={viewerPalette.axisLabel} fontSize="12">
                   x
                 </text>
-                <text x={46} y={36} fill="#cbd5e1" fontSize="12">
+                <text x={46} y={36} fill={viewerPalette.axisLabel} fontSize="12">
                   y
                 </text>
 
                 <path
                   d={simplexPath}
                   fill="none"
-                  stroke="rgba(100,116,139,0.42)"
+                  stroke={viewerPalette.simplexStroke}
                   strokeWidth={1.2}
                   strokeDasharray="4 4"
                 />
-                <path d={locusPath} fill="none" stroke="#94a3b8" strokeWidth={2} />
+                <path d={locusPath} fill="none" stroke={viewerPalette.locusStroke} strokeWidth={2} />
 
                 {sliceHull.length >= 3 && <g clipPath={`url(#${clipId})`}>{sliceField}</g>}
 
                 {sliceHull.length >= 3 && (
                   <path
                     d={polygonPath(sliceHull, (p) => to2DSpace(p[0], p[1], W2, H2))}
-                    fill="rgba(255,255,255,0.05)"
-                    stroke="#e2e8f0"
+                    fill={viewerPalette.hullFill}
+                    stroke={viewerPalette.hullStroke}
                     strokeWidth={2}
                   />
                 )}
@@ -1702,7 +2015,7 @@ export default function RoeschMacAdamxyYViewer() {
                       cy={py}
                       r={3.2}
                       fill={p.rgb}
-                      stroke="#0f172a"
+                      stroke={viewerPalette.svgBg}
                       strokeWidth={0.3}
                     />
                   );

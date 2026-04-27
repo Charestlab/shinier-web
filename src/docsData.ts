@@ -358,20 +358,22 @@ Number of iterations for SSIM optimization when hist_optim is enabled.
 
 Default: \`None\`
 
-Target histogram counts or weights to use for histogram or Fourier matching.
+Target histogram, image path, \`equal\`, or \`None\`.
 
-- Expected shape is (256,) for 8-bit grayscale data.
-- The string equal can be used for histogram equalization.
-- If omitted, the target histogram is the average histogram of the input images.
+Multiple input types are allowed:
 
-Example:
+- Histogram array:
+  Can contain histogram counts or weights. Shape must be \`(256,)\` or \`(256, 1)\` for single-channel processing, or \`(256, C)\` for multi-channel processing such as RGB with \`linear_luminance=True\` and \`as_gray=False\`. Histograms are normalized internally before use.
+- Input image file:
+  The image is processed using the same pipeline as the dataset to compute the target histogram. Spatial dimensions must match the processed images.
+- \`equal\`:
+  Uses a flat histogram, i.e. histogram equalization.
+- \`None\`:
+  Uses the average histogram of all input images.
 
-\`\`\`
-from shinier.utils import imhist
-target_hist = imhist(im)
-\`\`\`
+Used in all modes involving histogram matching: 2, 5, 6, 7, and 8.
 
-See also {@ref utils-imhist-plot|imhist_plot} for histogram visualization.
+See also {@ref utils-imhist|imhist} to compute a target histogram from an image, {@ref utils-imhist-plot|imhist_plot} for histogram visualization, and {@ref utils-show-processing-overview|show_processing_overview} for automatic before/after diagnostics.
 `,
     },
     {
@@ -399,23 +401,20 @@ This option is not allowed for modes 1 and 2.
 
 Default: \`None\`
 
-Target magnitude spectrum.
+Target Fourier magnitude spectrum, image path, or \`None\`.
 
-- Must have the same size as the images.
-- If omitted, the target magnitude spectrum is the average spectrum of all input images.
-- Used only for modes 3 and 4.
+Multiple input types are allowed:
 
-Example:
+- Magnitude spectrum array:
+  Must be a float array. Spatial shape must match the processed images: \`(H, W)\`, or \`(H, W, C)\` for multi-channel processing such as RGB with \`linear_luminance=True\` and \`as_gray=False\`.
+- Input image file:
+  The image is processed using the same pipeline as the dataset to compute the target spectrum. Spatial dimensions must match the processed images.
+- \`None\`:
+  Uses the average spectrum of all input images.
 
-\`\`\`
-from shinier.utils import image_spectrum
-import numpy as np
-from PIL import Image
-im = np.array(Image.open("my_image.png").convert("L"), dtype=np.float64)
-target_spectrum = image_spectrum(im)[0]
-\`\`\`
+Used in all modes involving Fourier matching: 3, 4, 5, 6, 7, and 8.
 
-Related plotting helpers are {@ref utils-spectrum-plot|spectrum_plot}, {@ref utils-im-power-spectrum-plot|im_power_spectrum_plot}, and {@ref utils-sf-plot|sf_plot}.
+See also {@ref utils-image-spectrum|image_spectrum} to compute a target spectrum from an image, {@ref utils-spectrum-plot|spectrum_plot}, {@ref utils-im-power-spectrum-plot|im_power_spectrum_plot}, {@ref utils-sf-plot|sf_plot}, and {@ref utils-show-processing-overview|show_processing_overview}.
 `,
     },
     {
@@ -576,6 +575,125 @@ This function reconstructs images whose Fourier magnitude is replaced by the tar
 
 - {@ref utils-spectrum-plot|spectrum_plot} for visualizing the target spectrum.
 - {@ref utils-im-power-spectrum-plot|im_power_spectrum_plot} for centered power-spectrum visualization.
+`,
+    },
+    {
+      id: "utils-imhist",
+      group: "utils",
+      title: "imhist",
+      summary:
+        "Computes grayscale or per-channel image histograms, optionally normalized and optionally restricted to a binary mask.",
+      sourceLabel: "utils.imhist",
+      sourcePath: "src/shinier/utils.py",
+      content: `
+Computes an image histogram over the \`[0, 255]\` intensity range.
+
+This utility is the simplest way to derive a target histogram from an image before passing it to {@ref options-histogram|target_hist}. It can operate on grayscale or RGB arrays, and can optionally normalize the histogram into weights that sum to 1.
+
+### Typical use
+
+- Build a target histogram from an image.
+- Compare histograms across images.
+- Feed the result into {@ref utils-imhist-plot|imhist_plot} or validation helpers.
+
+### Args
+
+- image: input image array, grayscale or RGB.
+- mask: optional binary mask restricting which pixels contribute.
+- n_bins: number of histogram bins, typically 256 for 8-bit data.
+- normalized: if True, returns histogram weights instead of raw counts.
+
+### Returns
+
+Histogram array of shape \`(256,)\` for single-channel data or \`(256, C)\` for multi-channel data.
+
+### Related references
+
+- {@ref options-histogram|target_hist} for how histogram targets are used in SHINIER.
+- {@ref utils-imhist-plot|imhist_plot} for visualization.
+- {@ref utils-show-processing-overview|show_processing_overview} for automatic before/after overview figures.
+`,
+    },
+    {
+      id: "utils-image-spectrum",
+      group: "utils",
+      title: "image_spectrum",
+      summary:
+        "Computes the Fourier magnitude and phase of an image and is the main helper for building target_spectrum arrays.",
+      sourceLabel: "utils.image_spectrum",
+      sourcePath: "src/shinier/utils.py",
+      content: `
+Computes the Fourier spectrum of an image and returns its magnitude and phase.
+
+This is the main helper for building a \`target_spectrum\` array when you want to provide a precomputed target instead of an input image path. The returned magnitude can be used directly as a target for {@ref options-fourier|target_spectrum}.
+
+### Typical use
+
+- Build a Fourier magnitude target from an image.
+- Inspect magnitude and phase separately.
+- Prepare custom targets for {@ref imageprocessor-sf-match|sf_match} or {@ref imageprocessor-spec-match|spec_match}.
+
+### Args
+
+- image: input image array.
+- rescale: if True, stretches the image to \`[0, 1]\` before the FFT; if False, assumes the input scale is already appropriate.
+
+### Returns
+
+Tuple \`(magnitude, phase)\`, each with the same spatial shape as the processed image, and with matching channels when multiple channels are processed independently.
+
+### Related references
+
+- {@ref options-fourier|target_spectrum} for how precomputed spectrum targets are used.
+- {@ref utils-spectrum-plot|spectrum_plot}, {@ref utils-im-power-spectrum-plot|im_power_spectrum_plot}, and {@ref utils-sf-plot|sf_plot} for visualization.
+- {@ref utils-show-processing-overview|show_processing_overview} for automatic before/after plotting.
+`,
+    },
+    {
+      id: "utils-show-processing-overview",
+      group: "utils",
+      title: "show_processing_overview",
+      summary:
+        "Generates the most complete automatic before/after diagnostic figure in SHINIER, with images and plots for every active processing step.",
+      sourceLabel: "utils.show_processing_overview",
+      sourcePath: "src/shinier/utils.py",
+      content: `
+Displays before/after images and diagnostics for all processing steps in one figure.
+
+This is the clearest utility to inspect SHINIER results almost automatically. It adapts the layout to the active mode and stacks the relevant plots for each processing stage, making it the best default diagnostic figure when you want a quick visual summary of the transformation.
+
+### Layout
+
+- Row 1: before and after images.
+- Additional rows: one row per active processing step, with before on the left and after on the right.
+- Histogram, spatial-frequency, or spectrum plots are chosen automatically depending on the mode.
+
+### Args
+
+- processor: SHINIER \`ImageProcessor\` instance.
+- img_idx: index of the image to visualize.
+- show_figure: if False, returns the figure without calling \`show()\`.
+- show_initial_target: if True, plots the initial target in composite modes.
+
+### Returns
+
+Matplotlib figure summarizing the image transformations.
+
+### Example
+
+\`\`\`
+from shinier import ImageProcessor, ImageDataset, Options
+from shinier.utils import show_processing_overview
+
+processor = ImageProcessor(dataset=ImageDataset(options=Options(mode=2)))
+fig = show_processing_overview(processor, img_idx=0, show_figure=False)
+fig.savefig("processing_overview.svg", format="svg")
+\`\`\`
+
+### Related references
+
+- {@ref utils-imhist-plot|imhist_plot}, {@ref utils-sf-plot|sf_plot}, and {@ref utils-spectrum-plot|spectrum_plot} for the underlying plots.
+- {@ref options-histogram|target_hist} and {@ref options-fourier|target_spectrum} for target definitions.
 `,
     },
     {

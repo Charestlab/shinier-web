@@ -314,7 +314,7 @@ const OPTIONS_BUILDER_GROUPS: BuilderGroup[] = [
       {
         key: "target_hist",
         label: "target_hist",
-        description: "Python expression for the target histogram or None.",
+        description: "Histogram array, input image path, `equal`, or None.",
         control: "textarea",
         serializeMode: "python",
         defaultLabel: "None",
@@ -345,7 +345,7 @@ const OPTIONS_BUILDER_GROUPS: BuilderGroup[] = [
       {
         key: "target_spectrum",
         label: "target_spectrum",
-        description: "Python expression for the target spectrum or None.",
+        description: "Magnitude spectrum array, input image path, or None.",
         control: "textarea",
         serializeMode: "python",
         defaultLabel: "None",

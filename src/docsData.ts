@@ -31,10 +31,10 @@ export type PackageDocs = {
 export const SHINIER_DOCS: PackageDocs = {
   metadata: {
     packageName: "SHINIER",
-    documentationVersion: "v0.1.9",
+    documentationVersion: "v0.2.0",
     githubUrl: "https://github.com/Charestlab/shinier/tree/main",
     sourceBranch: "main",
-    lastUpdatedLabel: "Documentation updated: v0.1.9",
+    lastUpdatedLabel: "Documentation updated: v0.2.0",
   },
   groups: [
     {

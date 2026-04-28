@@ -41,6 +41,11 @@ const D65_10NM = [
 
 const WHITE_POINT = { x: 0.3127, y: 0.3290 };
 const GAMUT_EPSILON = 1e-6;
+const PLOTLY_XYY_AXIS_TITLES = {
+  x: "x",
+  y: "Y",
+  z: "y",
+} as const;
 
 function gaussian(
   lambda: number,
@@ -1211,6 +1216,7 @@ export default function RoeschMacAdamxyYViewer() {
   const [showStop, setShowStop] = useState(true);
   const [showMesh, setShowMesh] = useState(true);
   const [showPoints, setShowPoints] = useState(true);
+  const [showSlicePoints, setShowSlicePoints] = useState(true);
   const [showOrthographicIn3D, setShowOrthographicIn3D] = useState(true);
   const [showChrominanceConstraint, setShowChrominanceConstraint] = useState(true);
   const [showLuminanceConstraint, setShowLuminanceConstraint] = useState(true);
@@ -1416,9 +1422,9 @@ export default function RoeschMacAdamxyYViewer() {
   );
 
   const axes = [
-    axisLine3D([0, 0, 0], [0.8, 0, 0], W3, H3, rotX, rotY, rotZ, zoom, "x"),
-    axisLine3D([0, 0, 0], [0, 0.9, 0], W3, H3, rotX, rotY, rotZ, zoom, "y"),
-    axisLine3D([0, 0, 0], [0, 0, 1], W3, H3, rotX, rotY, rotZ, zoom, "Y"),
+    axisLine3D([0, 0, 0], [0.8, 0, 0], W3, H3, rotX, rotY, rotZ, zoom, PLOTLY_XYY_AXIS_TITLES.x),
+    axisLine3D([0, 0, 0], [0, 0.9, 0], W3, H3, rotX, rotY, rotZ, zoom, PLOTLY_XYY_AXIS_TITLES.z),
+    axisLine3D([0, 0, 0], [0, 0, 1], W3, H3, rotX, rotY, rotZ, zoom, PLOTLY_XYY_AXIS_TITLES.y),
   ];
 
   const plotlyCamera = useMemo(() => {
@@ -1499,12 +1505,12 @@ export default function RoeschMacAdamxyYViewer() {
           color: filtered3D.map((p) => p.rgb),
           opacity: 0.82,
         },
-        hovertemplate: "x=%{x:.3f}<br>Y=%{y:.3f}<br>y=%{z:.3f}<extra></extra>",
+        hovertemplate: `${PLOTLY_XYY_AXIS_TITLES.x}=%{x:.3f}<br>${PLOTLY_XYY_AXIS_TITLES.y}=%{y:.3f}<br>${PLOTLY_XYY_AXIS_TITLES.z}=%{z:.3f}<extra></extra>`,
         showlegend: false,
       });
     }
 
-    if (slicePoints.length > 0) {
+    if (showSlicePoints && slicePoints.length > 0) {
       traces.push({
         type: "scatter3d",
         mode: "markers",
@@ -1608,6 +1614,7 @@ export default function RoeschMacAdamxyYViewer() {
     viewerPalette,
     showMesh,
     showPoints,
+    showSlicePoints,
     filtered3D,
     pointSize,
     slicePoints,
@@ -1635,7 +1642,7 @@ export default function RoeschMacAdamxyYViewer() {
       aspectmode: "manual",
       aspectratio: { x: 1.15, y: 1.45, z: 1.0 },
       xaxis: {
-        title: "x",
+        title: PLOTLY_XYY_AXIS_TITLES.x,
         color: viewerPalette.axisLabel,
         showbackground: false,
         gridcolor: viewerPalette.frameStroke,
@@ -1644,7 +1651,7 @@ export default function RoeschMacAdamxyYViewer() {
         tickcolor: viewerPalette.axisStroke,
       },
       yaxis: {
-        title: "Y",
+        title: PLOTLY_XYY_AXIS_TITLES.y,
         color: viewerPalette.axisLabel,
         showbackground: false,
         gridcolor: viewerPalette.frameStroke,
@@ -1654,7 +1661,7 @@ export default function RoeschMacAdamxyYViewer() {
         range: [0, 1],
       },
       zaxis: {
-        title: "y",
+        title: PLOTLY_XYY_AXIS_TITLES.z,
         color: viewerPalette.axisLabel,
         showbackground: false,
         gridcolor: viewerPalette.frameStroke,
@@ -1813,6 +1820,15 @@ export default function RoeschMacAdamxyYViewer() {
                   onChange={(e) => setShowPoints(e.target.checked)}
                 />
                 <div className="checkbox-label">Show point cloud</div>
+              </label>
+              <label className="checkbox-row">
+                <input
+                  className="checkbox-input"
+                  type="checkbox"
+                  checked={showSlicePoints}
+                  onChange={(e) => setShowSlicePoints(e.target.checked)}
+                />
+                <div className="checkbox-label">Show points used for slice</div>
               </label>
               {/* 'Show orthographic constraints in 3D view' moved to the demo panel on wide screens */}
 
@@ -2006,7 +2022,7 @@ export default function RoeschMacAdamxyYViewer() {
                   />
                 )}
 
-                {slicePoints.map((p, idx) => {
+                {showSlicePoints && slicePoints.map((p, idx) => {
                   const [px, py] = to2DSpace(p.x, p.y, W2, H2);
                   return (
                     <circle

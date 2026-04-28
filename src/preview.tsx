@@ -1330,11 +1330,11 @@ export default function RoeschMacAdamxyYViewer() {
 
   const viewerPalette = viewerTheme === "light"
     ? {
-        cardBg: "#ffffff",
+        cardBg: "#f4f6f8",
         cardBorder: "#d7e0ea",
         title: "#0f172a",
         subtext: "#334155",
-        svgBg: "#ffffff",
+        svgBg: "#f4f6f8",
         axisStroke: "#64748b",
         axisLabel: "#334155",
         frameStroke: "#94a3b8",
@@ -1345,7 +1345,7 @@ export default function RoeschMacAdamxyYViewer() {
         meshStroke: "rgba(100,116,139,0.52)",
         meshActiveStroke: "#0f172a",
         sliceMarkerFill: "#0f172a",
-        sliceMarkerStroke: "#ffffff",
+        sliceMarkerStroke: "#f4f6f8",
         segmentBg: "#e2e8f0",
         segmentText: "#334155",
         segmentActiveBg: "#0f172a",
@@ -1938,6 +1938,11 @@ export default function RoeschMacAdamxyYViewer() {
                   responsive: true,
                   displaylogo: false,
                   modeBarButtonsToRemove: ["select2d", "lasso2d"],
+                  toImageButtonOptions: {
+                    format: "png",
+                    filename: "shinier-xyY-view",
+                    scale: 5,
+                  },
                 }}
                 onInitialized={(_, graphDiv) => setPlotlyGraphDiv(graphDiv)}
                 onUpdate={(_, graphDiv) => setPlotlyGraphDiv(graphDiv)}

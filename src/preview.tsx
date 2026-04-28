@@ -1642,7 +1642,7 @@ export default function RoeschMacAdamxyYViewer() {
       aspectmode: "manual",
       aspectratio: { x: 1.15, y: 1.45, z: 1.0 },
       xaxis: {
-        title: PLOTLY_XYY_AXIS_TITLES.x,
+        title: { text: PLOTLY_XYY_AXIS_TITLES.x },
         color: viewerPalette.axisLabel,
         showbackground: false,
         gridcolor: viewerPalette.frameStroke,
@@ -1651,7 +1651,7 @@ export default function RoeschMacAdamxyYViewer() {
         tickcolor: viewerPalette.axisStroke,
       },
       yaxis: {
-        title: PLOTLY_XYY_AXIS_TITLES.y,
+        title: { text: PLOTLY_XYY_AXIS_TITLES.y },
         color: viewerPalette.axisLabel,
         showbackground: false,
         gridcolor: viewerPalette.frameStroke,
@@ -1661,7 +1661,7 @@ export default function RoeschMacAdamxyYViewer() {
         range: [0, 1],
       },
       zaxis: {
-        title: PLOTLY_XYY_AXIS_TITLES.z,
+        title: { text: PLOTLY_XYY_AXIS_TITLES.z },
         color: viewerPalette.axisLabel,
         showbackground: false,
         gridcolor: viewerPalette.frameStroke,

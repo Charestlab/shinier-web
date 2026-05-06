@@ -1,0 +1,41 @@
+================================================
+Small CNN (Biased=AB vs Normalized=C)
+
+Biased
+mean=0.4999   std=0.0003   error bar=±0.0003
+95% CI=[0.4997, 0.5001]   n=10
+
+Normalized
+mean=0.7781   std=0.0134   error bar=±0.0134
+95% CI=[0.7680, 0.7882]   n=10
+
+t-test (ind.)   t=-62.1074   p=1.8701e-22   ***
+
+================================================
+
+ResNet-50 pretrained (Biased=AB vs Normalized=C)
+
+Biased
+mean=0.9764   std=0.0014   error bar=±0.0014
+95% CI=[0.9753, 0.9775]   n=10
+
+Normalized
+mean=0.9845   std=0.0025   error bar=±0.0025
+95% CI=[0.9826, 0.9864]   n=10
+
+t-test (ind.)   t=-8.5434   p=9.4936e-08   ***
+
+================================================
+
+ResNet-50 no weights (Biased=AB vs Normalized=C)
+
+Biased
+mean=0.5199   std=0.0071   error bar=±0.0071
+95% CI=[0.5145, 0.5253]   n=10
+
+Normalized
+mean=0.5633   std=0.0162   error bar=±0.0162
+95% CI=[0.5511, 0.5755]   n=10
+
+t-test (ind.)   t=-7.3605   p=7.8606e-07   ***
+================================================
